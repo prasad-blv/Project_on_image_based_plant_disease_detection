@@ -1,0 +1,266 @@
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+%matplotlib inline
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+from keras_preprocessing.image import ImageDataGenerator
+from keras.layers import Conv2D,MaxPooling2D
+from keras.models import Sequential
+from keras.layers import Dense,Activation,Flatten,Dropout,BatchNormalization
+import tensorflow as tf
+from keras import optimizers
+from keras.callbacks import ModelCheckpoint,EarlyStopping
+Using TensorFlow backend.
+datagen = ImageDataGenerator(rescale=1./255.,shear_range=0.2,
+                                   zoom_range=0.2,
+                                   width_shift_range=0.2,
+                                   height_shift_range=0.2,
+                                   fill_mode='nearest')
+train_generator =datagen.flow_from_directory(
+directory= "E:/project/plant-disease/dataset/dataset/train",
+target_size=(224,224),
+batch_size=128,
+class_mode = "categorical",
+shuffle=True,
+seed=50
+)
+Found 19453 images belonging to 38 classes.
+valid_generator =datagen.flow_from_directory(
+directory= "E:/project/plant-disease/dataset/dataset/valid",
+target_size=(224,224),
+batch_size=128,
+class_mode = "categorical",
+shuffle=True,
+seed=50
+)
+Found 6542 images belonging to 38 classes.
+labels=os.listdir('../input/origin/train/')
+print(len(labels))
+print(labels)
+class_dict = train_generator.class_indices
+print(class_dict)
+length_labels=[]
+path='../input/origin/train/'
+for dirpath, dirnames, filenames in os.walk(path):
+    n=len(filenames)
+    length_labels.append(n)
+labels_length=length_labels[1:]
+x=train_generator.next()
+image=x[0][5]
+image.shape
+plt.figure()
+plt.imshow(image)
+plt.show()
+index = np.arange(len(labels))
+plt.bar(index+15, labels_length)
+plt.xlabel('labels_name', fontsize=15)
+plt.ylabel('No of images', fontsize=15)
+plt.xticks(index+15, labels, fontsize=10,rotation=90)
+plt.title('image samples per class')
+plt.show()
+step_size_train=train_generator.n//train_generator.batch_size
+step_size_valid=valid_generator.n//valid_generator.batch_size
+model=Sequential()
+model.add(Conv2D(96, 11, strides = (4, 4), padding = 'valid', input_shape=(224, 224, 3), activation = 'relu'))
+model.add(MaxPooling2D(pool_size = (2, 2), strides = (2, 2), padding = 'valid'))
+model.add(BatchNormalization())
+model.add(Conv2D(256, 11, strides = (1, 1), padding='valid', activation = 'relu')) 
+model.add(MaxPooling2D(pool_size = (2, 2), strides = (2, 2), padding='valid'))
+model.add(BatchNormalization())
+model.add(Conv2D(384, 3, strides = (1, 1), padding='valid', activation = 'relu'))
+model.add(BatchNormalization())
+model.add(Conv2D(384, 3, strides = (1, 1), padding='valid', activation = 'relu'))
+model.add(BatchNormalization())
+model.add(Conv2D(256, 3, strides=(1,1), padding='valid', activation = 'relu'))
+model.add(MaxPooling2D(pool_size = (2, 2), strides = (2, 2), padding = 'valid'))
+model.add(BatchNormalization())    
+model.add(Flatten())
+model.add(Dense(units = 4096, activation = 'relu'))
+model.add(Dropout(0.4))
+model.add(BatchNormalization())
+model.add(Dense(units = 4096, activation = 'relu'))
+model.add(Dropout(0.4))
+model.add(BatchNormalization())
+model.add(Dense(units = 1000, activation = 'relu'))
+model.add(Dropout(0.2))
+model.add(BatchNormalization())
+model.add(Dense(units = 38, activation = 'softmax'))    
+model.summary()
+Model: "sequential_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+conv2d_1 (Conv2D)            (None, 54, 54, 96)        34944     
+_________________________________________________________________
+max_pooling2d_1 (MaxPooling2 (None, 27, 27, 96)        0         
+_________________________________________________________________
+batch_normalization_1 (Batch (None, 27, 27, 96)        384       
+_________________________________________________________________
+conv2d_2 (Conv2D)            (None, 17, 17, 256)       2973952   
+_________________________________________________________________
+max_pooling2d_2 (MaxPooling2 (None, 8, 8, 256)         0         
+_________________________________________________________________
+batch_normalization_2 (Batch (None, 8, 8, 256)         1024      
+_________________________________________________________________
+conv2d_3 (Conv2D)            (None, 6, 6, 384)         885120    
+_________________________________________________________________
+batch_normalization_3 (Batch (None, 6, 6, 384)         1536      
+_________________________________________________________________
+conv2d_4 (Conv2D)            (None, 4, 4, 384)         1327488   
+_________________________________________________________________
+batch_normalization_4 (Batch (None, 4, 4, 384)         1536      
+_________________________________________________________________
+conv2d_5 (Conv2D)            (None, 2, 2, 256)         884992    
+_________________________________________________________________
+max_pooling2d_3 (MaxPooling2 (None, 1, 1, 256)         0         
+_________________________________________________________________
+batch_normalization_5 (Batch (None, 1, 1, 256)         1024      
+_________________________________________________________________
+flatten_1 (Flatten)          (None, 256)               0         
+_________________________________________________________________
+dense_1 (Dense)              (None, 4096)              1052672   
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 4096)              0         
+_________________________________________________________________
+batch_normalization_6 (Batch (None, 4096)              16384     
+_________________________________________________________________
+dense_2 (Dense)              (None, 4096)              16781312  
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 4096)              0         
+_________________________________________________________________
+batch_normalization_7 (Batch (None, 4096)              16384     
+_________________________________________________________________
+dense_3 (Dense)              (None, 1000)              4097000   
+_________________________________________________________________
+dropout_3 (Dropout)          (None, 1000)              0         
+_________________________________________________________________
+batch_normalization_8 (Batch (None, 1000)              4000      
+_________________________________________________________________
+dense_4 (Dense)              (None, 38)                38038     
+=================================================================
+Total params: 28,117,790
+Trainable params: 28,096,654
+Non-trainable params: 21,136
+_________________________________________________________________
+model.load_weights('best_weights_6.hdf5')
+print("Freezed layers:")
+for i, layer in enumerate(model.layers[:20]):
+    print(i, layer.name)
+    layer.trainable = False
+Freezed layers:
+0 conv2d_1
+1 max_pooling2d_1
+2 batch_normalization_1
+3 conv2d_2
+4 max_pooling2d_2
+5 batch_normalization_2
+6 conv2d_3
+7 batch_normalization_3
+8 conv2d_4
+9 batch_normalization_4
+10 conv2d_5
+11 max_pooling2d_3
+12 batch_normalization_5
+13 flatten_1
+14 dense_1
+15 dropout_1
+16 batch_normalization_6
+17 dense_2
+18 dropout_2
+19 batch_normalization_7
+model.compile(optimizer=optimizers.SGD(lr=0.001,momentum=0.9,decay=0.005),loss="categorical_crossentropy",metrics=["accuracy"])
+model.summary()
+Model: "sequential_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+conv2d_1 (Conv2D)            (None, 54, 54, 96)        34944     
+_________________________________________________________________
+max_pooling2d_1 (MaxPooling2 (None, 27, 27, 96)        0         
+_________________________________________________________________
+batch_normalization_1 (Batch (None, 27, 27, 96)        384       
+_________________________________________________________________
+conv2d_2 (Conv2D)            (None, 17, 17, 256)       2973952   
+_________________________________________________________________
+max_pooling2d_2 (MaxPooling2 (None, 8, 8, 256)         0         
+_________________________________________________________________
+batch_normalization_2 (Batch (None, 8, 8, 256)         1024      
+_________________________________________________________________
+conv2d_3 (Conv2D)            (None, 6, 6, 384)         885120    
+_________________________________________________________________
+batch_normalization_3 (Batch (None, 6, 6, 384)         1536      
+_________________________________________________________________
+conv2d_4 (Conv2D)            (None, 4, 4, 384)         1327488   
+_________________________________________________________________
+batch_normalization_4 (Batch (None, 4, 4, 384)         1536      
+_________________________________________________________________
+conv2d_5 (Conv2D)            (None, 2, 2, 256)         884992    
+_________________________________________________________________
+max_pooling2d_3 (MaxPooling2 (None, 1, 1, 256)         0         
+_________________________________________________________________
+batch_normalization_5 (Batch (None, 1, 1, 256)         1024      
+_________________________________________________________________
+flatten_1 (Flatten)          (None, 256)               0         
+_________________________________________________________________
+dense_1 (Dense)              (None, 4096)              1052672   
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 4096)              0         
+_________________________________________________________________
+batch_normalization_6 (Batch (None, 4096)              16384     
+_________________________________________________________________
+dense_2 (Dense)              (None, 4096)              16781312  
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 4096)              0         
+_________________________________________________________________
+batch_normalization_7 (Batch (None, 4096)              16384     
+_________________________________________________________________
+dense_3 (Dense)              (None, 1000)              4097000   
+_________________________________________________________________
+dropout_3 (Dropout)          (None, 1000)              0         
+_________________________________________________________________
+batch_normalization_8 (Batch (None, 1000)              4000      
+_________________________________________________________________
+dense_4 (Dense)              (None, 38)                38038     
+=================================================================
+Total params: 28,117,790
+Trainable params: 4,137,038
+Non-trainable params: 23,980,752
+_________________________________________________________________
+weightpath = "best_weights_6.hdf5"
+checkpoint = ModelCheckpoint(weightpath, monitor='val_accuracy', verbose=1, save_best_only=True, save_weights_only=True, mode='max')
+early=EarlyStopping(monitor='val_accuracy',min_delta=0,patience=5,verbose=1,mode='auto')
+
+trace=model.fit_generator(generator=train_generator,steps_per_epoch=step_size_train,validation_data=valid_generator,validation_steps=step_size_valid,epochs=20,callbacks=[checkpoint,early])
+
+model.evaluate_generator(generator=valid_generator,steps=step_size_valid)
+filepath="AlexNetModel.hdf5"
+model.save(filepath)
+Epoch 1/20
+151/151 [==============================] - 1244s 8s/step - loss: 0.1252 - accuracy: 0.9583 - val_loss: 0.1147 - val_accuracy: 0.9519
+
+Epoch 00001: val_accuracy improved from -inf to 0.95190, saving model to best_weights_6.hdf5
+Epoch 2/20
+151/151 [==============================] - 828s 5s/step - loss: 0.1286 - accuracy: 0.9569 - val_loss: 0.1870 - val_accuracy: 0.9457
+
+Epoch 00002: val_accuracy did not improve from 0.95190
+Epoch 3/20
+151/151 [==============================] - 808s 5s/step - loss: 0.1173 - accuracy: 0.9602 - val_loss: 0.1098 - val_accuracy: 0.9482
+
+Epoch 00003: val_accuracy did not improve from 0.95190
+Epoch 4/20
+151/151 [==============================] - 760s 5s/step - loss: 0.1214 - accuracy: 0.9592 - val_loss: 0.0810 - val_accuracy: 0.9492
+
+Epoch 00004: val_accuracy did not improve from 0.95190
+Epoch 5/20
+151/151 [==============================] - 790s 5s/step - loss: 0.1216 - accuracy: 0.9594 - val_loss: 0.1924 - val_accuracy: 0.9478
+
+Epoch 00005: val_accuracy did not improve from 0.95190
+Epoch 6/20
+151/151 [==============================] - 825s 5s/step - loss: 0.1237 - accuracy: 0.9563 - val_loss: 0.1834 - val_accuracy: 0.9470
+
+Epoch 00006: val_accuracy did not improve from 0.95190
+Epoch 00006: early stopping
